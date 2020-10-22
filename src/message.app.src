@@ -1,0 +1,19 @@
+{application, message,
+ [{description, "Server Application for handling aws sqs encrypted message"},
+  {vsn, "1.0.0"},
+  {registered, []},
+  {mod, {message_app, []}},
+  {applications,
+   [kernel,
+    stdlib,
+    erlcloud,
+    jsone,
+    inets,
+    ssl
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {licenses, ["Apache 2.0"]},
+  {links, [{"Github", "https://github.com/thiagoesteves/aws_sse_sqs"}]}
+ ]}.

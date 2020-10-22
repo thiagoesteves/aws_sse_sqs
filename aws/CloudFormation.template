@@ -1,0 +1,131 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Resources": {
+        "CryptoSQS": {
+            "Type": "AWS::SQS::Queue",
+            "Properties": {
+                "QueueName": "CryptoSQS",
+                "KmsMasterKeyId": "alias/aws/sqs"
+            }
+        },
+        "CryptoIdGroup": {
+            "Type": "AWS::IAM::Group",
+            "Properties": {
+                "GroupName": "CryptoIdGroup"
+            }
+        },
+        "ProducerUser": {
+            "Type": "AWS::IAM::User",
+            "Properties": {
+                "UserName": "producer",
+                "Groups": [
+                    {
+                        "Ref": "CryptoIdGroup"
+                    }
+                ]
+            }
+        },
+        "ValidationPolicy": {
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "ValidationPolicy",
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "ValidationPolicy0",
+                            "Effect": "Allow",
+                            "Action": [
+                                "sqs:DeleteMessage",
+                                "sqs:ReceiveMessage",
+                                "sqs:SendMessage"
+                            ],
+                            "Resource": "*"
+                        }
+                    ]
+                },
+                "Groups": [
+                    {
+                        "Ref": "CryptoIdGroup"
+                    }
+                ]
+            },
+            "DependsOn": [
+                "ProducerUser"
+            ]
+        },
+        "HandleMsgsLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Description" : "This function reads, process and delete SQS MSGS",
+                "FunctionName" : "ProcessMsgs",
+                "Handler": "index.lambda_handler",
+                "Role": { "Fn::GetAtt" : ["LambdaExecutionRole", "Arn"] },
+                "Code": {
+                    "ZipFile":  { "Fn::Join": ["", [
+                        "import json\n\n",
+                        "def lambda_handler(event, context):\n",
+                        "   message_id = event['Records'][0]['messageId']\n",
+                        "   message_receipt_handle = event['Records'][0]['receiptHandle']\n",
+                        "   message_body = event['Records'][0]['body']\n",
+                        "   print('Message received :')\n",
+                        "   print(message_body)\n",
+                        "   print('Processing message ...')\n",
+                        "   return {\n",
+                        "       'statusCode': 200,\n",
+                        "       'message_id': message_id,\n",
+                        "       'message_body': message_body,\n",
+                        "       'event': json.dumps(event)\n",
+                        "   }\n"
+                    ]]}
+                },
+                "Runtime": "python3.7"
+            },
+            "DependsOn": [
+                "LambdaExecutionRole"
+            ]
+        },
+        "LambdaExecutionRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [{ "Effect": "Allow", "Principal": {"Service": ["lambda.amazonaws.com"]}, "Action": ["sts:AssumeRole"] }]
+                },
+                "Path": "/",
+                "Policies": [{
+                    "PolicyName": "LambdaPolicySqs",
+                    "PolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [{
+                            "Effect": "Allow",
+                            "Action": [
+                                "sqs:ReceiveMessage",
+                                "sqs:DeleteMessage",
+                                "sqs:GetQueueAttributes",
+                                "logs:CreateLogGroup",
+                                "logs:CreateLogStream",
+                                "logs:PutLogEvents"
+                            ],
+                            "Resource": "*"
+                        }]
+                    }
+                }]
+            }
+        },
+        "LambdaFunctionSQSEventSourceMapping": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "Properties": {
+                "BatchSize": "10",
+                "Enabled": "true",
+                "EventSourceArn": { "Fn::GetAtt" : ["CryptoSQS", "Arn"] },
+                "FunctionName": {
+                    "Ref": "HandleMsgsLambdaFunction"
+                }
+            },
+            "DependsOn": [
+                "CryptoSQS", "HandleMsgsLambdaFunction"
+            ]
+        }
+    }
+}
