@@ -1,3 +1,5 @@
+[![Build Status](https://secure.travis-ci.org/thiagoesteves/aws_sse_sqs.svg?branch=main)](http://travis-ci.org/thiagoesteves/aws_sse_sqs)
+
 # AWS solution
 This code is going to show how to implement and test the following AWS items:
 

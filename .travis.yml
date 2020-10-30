@@ -1,0 +1,9 @@
+sudo: false
+language: erlang
+otp_release:
+  - 23.0
+branches:
+  only:
+    - main
+script:
+  - make compile
